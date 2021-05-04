@@ -18,7 +18,7 @@ def main(args):
     np.zeros(T-1)
     motion_diff, mode10x10 = np.zeros(T-1), np.zeros(T-1)
     Coh10x10 = []
-    niqe_feat = np.zeros((T,36),dtype=np.float32)
+    niqe_feat = np.zeros((T,37),dtype=np.float32)
     
     videoData = np.zeros((2, height, width), dtype=np.uint8)
     prev_frame = next(vid)

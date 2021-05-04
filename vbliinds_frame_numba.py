@@ -6,8 +6,14 @@ import scipy.ndimage
 import scipy.fftpack
 import scipy.stats
 import scipy.io
+import skvideo.measure as _
 import cv2
 from numba import jit
+
+niqe_data_path = _.__file__.replace('__init__.py','data/frames_modelparameters.mat')
+params = scipy.io.loadmat(niqe_data_path)
+mu_prisparam = np.ravel(params["mu_prisparam"]).T
+cov_prisparam = params["cov_prisparam"]
 
 @jit(nopython=True)
 def eigen_calculation(shape1, shape2, upper_left, off_diag, lower_right):
@@ -87,7 +93,7 @@ def compute_niqe_features(img):
     img = img.astype(np.float32)
     img2 = cv2.resize(img, (w//2,h//2),\
                              interpolation = cv2.INTER_AREA)
-
+    
     mscn1, var, mu = compute_image_mscn_transform(img, extend_mode='nearest')
     mscn1 = mscn1.astype(np.float32)
 
@@ -96,11 +102,21 @@ def compute_niqe_features(img):
 
     feats_lvl1 = extract_on_patches(mscn1, blocksize)
     feats_lvl2 = extract_on_patches(mscn2, blocksize//2)
-
+    
     # stack the scale features
     feats = np.hstack((feats_lvl1, feats_lvl2))# feats_lvl3))
+    
+    #calculate score
+    mu_distparam = np.mean(feats, axis=0)
+    cov_distparam = np.cov(feats.T)
 
-    return np.mean(feats,axis=0)
+    invcov_param = np.linalg.pinv((cov_prisparam + cov_distparam)/2, hermitian=True,\
+                                  rcond=1e-5)
+
+    xd = mu_prisparam - mu_distparam
+    quality = np.sqrt(np.dot(np.dot(xd, invcov_param), xd))
+
+    return np.hstack((mu_distparam, [quality]))
 
 def motion_feature_extraction_frame(frames):
     # setup
